@@ -1,0 +1,60 @@
+export const TITLE_MAX = 200;
+
+/** True only for absolute http(s) URLs. Mirrors the server rule. */
+export function isHttpUrl(value) {
+  if (typeof value !== 'string' || value.trim() === '') return false;
+  try {
+    const u = new URL(value.trim());
+    return u.protocol === 'http:' || u.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+/** "https://www.youtube.com/watch?v=x" → "youtube.com" */
+export function domainOf(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return '';
+  }
+}
+
+/** Client-side validation (the server validates again). Returns an error message or null. */
+export function validateDraft({ title, url }) {
+  const t = title.trim();
+  if (!t) return 'Le titre est obligatoire.';
+  if (t.length > TITLE_MAX) return `Le titre doit faire au plus ${TITLE_MAX} caractères.`;
+  if (url.trim() && !isHttpUrl(url)) return 'Le lien doit être une URL http(s) valide.';
+  return null;
+}
+
+/** Same order as GET /api/items: category order, not-done first, newest first. */
+export function sortItems(items, categoryOrder) {
+  const rank = new Map(categoryOrder.map((k, i) => [k, i]));
+  return [...items].sort(
+    (a, b) =>
+      (rank.get(a.category) ?? 99) - (rank.get(b.category) ?? 99) ||
+      Number(a.done) - Number(b.done) ||
+      (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0) ||
+      b.id - a.id,
+  );
+}
+
+const LAST_CATEGORY_KEY = 'ideas.lastCategory';
+
+export function loadLastCategory() {
+  try {
+    return localStorage.getItem(LAST_CATEGORY_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function saveLastCategory(key) {
+  try {
+    localStorage.setItem(LAST_CATEGORY_KEY, key);
+  } catch {
+    /* storage unavailable: not critical */
+  }
+}

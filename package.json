@@ -1,23 +1,31 @@
 {
   "name": "ideas",
   "version": "1.0.0",
-  "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "concurrently -k -n api,web -c blue,magenta \"node --watch --env-file=.env server.js\" \"vite\"",
+    "build": "vite build",
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "test": "node --test \"test/*.test.js\""
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
-  "description": "",
+  "description": "Notes personnelles : idées à faire, investiguer, lire et regarder",
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.6",
     "better-sqlite3": "^13.0.3",
     "hono": "^4.13.16"
-  }
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.2.1",
+    "concurrently": "^10.0.6",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "vite": "^8.3.6"
+  },
+  "private": true
 }
