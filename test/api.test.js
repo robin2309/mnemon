@@ -249,8 +249,8 @@ describe('items API', () => {
 });
 
 test('AC8: data persists across DB reopen', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ideas-test-'));
-  const file = path.join(dir, 'nested', 'ideas.db');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mnemon-test-'));
+  const file = path.join(dir, 'nested', 'mnemon.db');
   try {
     const db1 = openDb(file);
     db1.createItem({ title: 'Persistant', url: null, category: 'todo' });
