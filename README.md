@@ -1,6 +1,6 @@
 # Mnémon
 
-Application web personnelle pour noter des idées à **faire**, **investiguer**, **lire** et **regarder**, depuis l'ordinateur ou le téléphone. Spécifications : [`SPECS.md`](SPECS.md). Conception technique : [`specs/ideas_design.md`](specs/ideas_design.md).
+Application web personnelle pour noter des idées à **faire**, **investiguer**, **lire** et **regarder**, depuis l'ordinateur ou le téléphone. Spécifications : [`SPECS.md`](SPECS.md). Conception technique : [`specs/mnemon_design.md`](specs/mnemon_design.md).
 
 - Serveur : Node.js ≥ 22, [Hono](https://hono.dev), SQLite (`better-sqlite3`)
 - Front : React 19, construit par Vite dans `dist/` et servi par le même serveur
