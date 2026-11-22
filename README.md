@@ -1,4 +1,4 @@
-# Ideas
+# Mnémon
 
 Application web personnelle pour noter des idées à **faire**, **investiguer**, **lire** et **regarder**, depuis l'ordinateur ou le téléphone. Spécifications : [`SPECS.md`](SPECS.md). Conception technique : [`specs/ideas_design.md`](specs/ideas_design.md).
 
@@ -32,7 +32,7 @@ Tests de l'API : `npm test`.
 
 ```sh
 fly launch --no-deploy                     # garder le fly.toml existant, choisir un nom d'app
-fly volumes create ideas_data --size 1     # même région que primary_region
+fly volumes create mnemon_data --size 1     # même région que primary_region
 fly secrets set APP_PASSWORD='…' SESSION_SECRET="$(openssl rand -hex 32)"
 fly deploy
 fly scale count 1                          # SQLite : une seule machine
@@ -45,10 +45,10 @@ Changer `SESSION_SECRET` déconnecte tous les appareils.
 ## Sauvegarde de la base
 
 ```sh
-fly ssh sftp get /data/ideas.db ./ideas-backup.db
+fly ssh sftp get /data/mnemon.db ./mnemon-backup.db
 ```
 
-La base est en mode WAL : pour une copie parfaitement cohérente, faire la sauvegarde quand l'app est au repos (ou `fly ssh console -C "sqlite3 /data/ideas.db '.backup /data/backup.db'"` si `sqlite3` est installé dans l'image).
+La base est en mode WAL : pour une copie parfaitement cohérente, faire la sauvegarde quand l'app est au repos (ou `fly ssh console -C "sqlite3 /data/mnemon.db '.backup /data/backup.db'"` si `sqlite3` est installé dans l'image).
 
 ## Sécurité, en bref
 

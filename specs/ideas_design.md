@@ -1,4 +1,4 @@
-# Ideas — Technical design
+# Mnémon — Technical design
 
 Implements `SPECS.md`, with one deliberate deviation requested by the owner: **the front end is React** (instead of vanilla JS).
 

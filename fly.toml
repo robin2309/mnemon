@@ -1,5 +1,5 @@
 # Replace `app` with your own name (fly launch --no-deploy will offer one).
-app = "ideas-change-me"
+app = "mnemon-change-me"
 primary_region = "cdg"
 
 [build]
@@ -7,11 +7,11 @@ primary_region = "cdg"
 [env]
   NODE_ENV = "production"
   PORT = "3000"
-  DB_PATH = "/data/ideas.db"
+  DB_PATH = "/data/mnemon.db"
 
 # SQLite lives on this volume. One volume => one machine (SQLite = single instance).
 [[mounts]]
-  source = "ideas_data"
+  source = "mnemon_data"
   destination = "/data"
 
 [http_service]

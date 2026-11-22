@@ -1,4 +1,4 @@
-# Ideas — Spécifications
+# Mnémon — Spécifications
 
 Application web personnelle pour noter des idées de choses à **faire**, **investiguer**, **lire** et **regarder**, accessible depuis plusieurs appareils (ordinateur + téléphone).
 
@@ -101,7 +101,7 @@ ideas/
 | Variable | Défaut | Rôle |
 |---|---|---|
 | `PORT` | `3000` | Port d'écoute |
-| `DB_PATH` | `./data/ideas.db` | Chemin du fichier SQLite (`/data/ideas.db` en prod) |
+| `DB_PATH` | `./data/mnemon.db` | Chemin du fichier SQLite (`/data/mnemon.db` en prod) |
 | `APP_PASSWORD` | — (obligatoire) | Mot de passe d'accès. Le serveur refuse de démarrer s'il est absent |
 | `SESSION_SECRET` | — (obligatoire) | Secret de signature du cookie de session |
 
@@ -162,9 +162,9 @@ Format `Item` :
 
 ### 2.8 Déploiement (Fly.io)
 - `Dockerfile` : image `node:22-slim`, `npm ci --omit=dev`, `CMD ["node","server.js"]`.
-- `fly.toml` : `internal_port = 3000`, `force_https = true`, montage d'un volume `ideas_data` sur `/data`, `DB_PATH=/data/ideas.db`, 1 machine (SQLite n'accepte qu'une instance), `auto_stop_machines = "stop"` et `min_machines_running = 0` pour limiter le coût.
+- `fly.toml` : `internal_port = 3000`, `force_https = true`, montage d'un volume `mnemon_data` sur `/data`, `DB_PATH=/data/mnemon.db`, 1 machine (SQLite n'accepte qu'une instance), `auto_stop_machines = "stop"` et `min_machines_running = 0` pour limiter le coût.
 - Secrets posés via `fly secrets set APP_PASSWORD=… SESSION_SECRET=…`.
-- Documenter dans un `README.md` : lancement local (`npm run dev` avec `.env`), premier déploiement (`fly launch --no-deploy`, `fly volumes create ideas_data --size 1`, `fly secrets set …`, `fly deploy`), sauvegarde de la base (`fly ssh sftp get /data/ideas.db`).
+- Documenter dans un `README.md` : lancement local (`npm run dev` avec `.env`), premier déploiement (`fly launch --no-deploy`, `fly volumes create mnemon_data --size 1`, `fly secrets set …`, `fly deploy`), sauvegarde de la base (`fly ssh sftp get /data/mnemon.db`).
 
 ### 2.9 Critères d'acceptation
 1. Sans mot de passe, `/` redirige vers `/login` et `/api/items` répond `401`.

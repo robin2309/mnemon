@@ -116,7 +116,7 @@ export default function App() {
   return (
     <>
       <header className="app-header">
-        <h1>Ideas</h1>
+        <h1>Mnémon</h1>
         <form method="post" action="/logout">
           <button type="submit" className="btn btn-ghost">
             Se déconnecter

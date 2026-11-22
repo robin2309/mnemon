@@ -1,5 +1,5 @@
 {
-  "name": "ideas",
+  "name": "mnemon",
   "version": "1.0.0",
   "scripts": {
     "dev": "concurrently -k -n api,web -c blue,magenta \"node --watch --env-file=.env server.js\" \"vite\"",

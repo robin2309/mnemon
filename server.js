@@ -244,7 +244,7 @@ export function createApp({
 function main() {
   const { APP_PASSWORD, SESSION_SECRET } = process.env;
   const PORT = Number(process.env.PORT ?? 3000);
-  const DB_PATH = process.env.DB_PATH ?? './data/ideas.db';
+  const DB_PATH = process.env.DB_PATH ?? './data/mnemon.db';
   const isProd = process.env.NODE_ENV === 'production';
 
   if (!APP_PASSWORD) {
