@@ -100,7 +100,7 @@ async function main() {
     signal: AbortSignal.timeout(30_000),
   });
   const location = loginRes.headers.get('location') ?? '';
-  const sessionCookie = loginRes.headers.getSetCookie().find((c) => c.startsWith('ideas_session='));
+  const sessionCookie = loginRes.headers.getSetCookie().find((c) => c.startsWith('mnemon_session='));
   if (loginRes.status !== 302 || location.includes('error') || !sessionCookie) {
     fail(loginRes.status === 302 ? 'mot de passe incorrect.' : `connexion refusée (HTTP ${loginRes.status}).`);
   }

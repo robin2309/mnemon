@@ -53,11 +53,20 @@ export function sortItems(items, categoryOrder) {
   );
 }
 
-const LAST_CATEGORY_KEY = 'ideas.lastCategory';
+const LAST_CATEGORY_KEY = 'mnemon.lastCategory';
+const LEGACY_LAST_CATEGORY_KEY = 'ideas.lastCategory'; // name used before the app became Mnémon
 
 export function loadLastCategory() {
   try {
-    return localStorage.getItem(LAST_CATEGORY_KEY);
+    const value = localStorage.getItem(LAST_CATEGORY_KEY);
+    if (value !== null) return value;
+    // One-time migration from the old key.
+    const legacy = localStorage.getItem(LEGACY_LAST_CATEGORY_KEY);
+    if (legacy !== null) {
+      localStorage.setItem(LAST_CATEGORY_KEY, legacy);
+      localStorage.removeItem(LEGACY_LAST_CATEGORY_KEY);
+    }
+    return legacy;
   } catch {
     return null;
   }

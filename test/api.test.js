@@ -119,7 +119,7 @@ describe('auth', () => {
   });
 
   test('forged / tampered cookie is rejected', async () => {
-    const r = await app.request('/api/items', { headers: { Cookie: 'ideas_session=v1.9999999999999.forged' } });
+    const r = await app.request('/api/items', { headers: { Cookie: 'mnemon_session=v1.9999999999999.forged' } });
     assert.equal(r.status, 401);
   });
 

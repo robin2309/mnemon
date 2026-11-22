@@ -14,7 +14,7 @@ import { getConnInfo } from '@hono/node-server/conninfo';
 import { CATEGORIES, openDb, validateCreate, validatePatch } from './db.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
-const SESSION_COOKIE = 'ideas_session';
+const SESSION_COOKIE = 'mnemon_session';
 const SESSION_MAX_AGE_S = 365 * 24 * 60 * 60; // 1 year
 const PUBLIC_PATHS = new Set(['/login', '/manifest.webmanifest', '/icon.svg']);
 
