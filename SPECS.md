@@ -81,7 +81,7 @@ Dépendances déjà installées : `hono`, `@hono/node-server`, `better-sqlite3`.
 
 ### 2.2 Arborescence
 ```
-ideas/
+mnemon/
 ├── server.js          # app Hono : auth, routes API, fichiers statiques
 ├── db.js              # connexion SQLite, migration, requêtes
 ├── public/
