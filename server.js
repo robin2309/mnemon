@@ -219,6 +219,16 @@ export function createApp({
     return c.body(null, 204);
   });
 
+  // Full database backup, downloadable as a .db file (see scripts/export.js).
+  api.get('/export', (c) => {
+    const snapshot = db.exportSnapshot();
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    log('export', { ip: clientIp(c), bytes: snapshot.length });
+    c.header('Content-Type', 'application/vnd.sqlite3');
+    c.header('Content-Disposition', `attachment; filename="mnemon-${stamp}.db"`);
+    return c.body(snapshot);
+  });
+
   api.notFound((c) => c.json({ error: 'Route inconnue.' }, 404));
   app.route('/api', api);
 

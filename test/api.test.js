@@ -265,3 +265,46 @@ test('AC8: data persists across DB reopen', () => {
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+describe('export', () => {
+  let db, app, api, tmp;
+  before(async () => {
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'mnemon-export-'));
+    db = openDb(path.join(tmp, 'live.db')); // file-backed, WAL mode like production
+    app = makeApp(db);
+    const cookie = (await login(app)).headers.get('set-cookie').split(';')[0];
+    api = client(app, cookie);
+  });
+  after(() => {
+    db.close();
+    fs.rmSync(tmp, { recursive: true, force: true });
+  });
+
+  test('requires a session', async () => {
+    const r = await app.request('/api/export');
+    assert.equal(r.status, 401);
+  });
+
+  test('returns a usable SQLite snapshot including recent writes', async () => {
+    await api.post('/api/items', { title: 'Sauvegarder', category: 'todo' });
+    await api.post('/api/items', { title: 'Dune', category: 'read', url: 'https://example.com' });
+
+    const r = await api.get('/api/export');
+    assert.equal(r.status, 200);
+    assert.equal(r.headers.get('content-type'), 'application/vnd.sqlite3');
+    assert.match(r.headers.get('content-disposition'), /^attachment; filename="mnemon-[\w-]+\.db"$/);
+    assert.equal(r.headers.get('cache-control'), 'no-store');
+
+    const file = path.join(tmp, 'snapshot.db');
+    fs.writeFileSync(file, Buffer.from(await r.arrayBuffer()));
+    const copy = openDb(file);
+    try {
+      assert.deepEqual(
+        copy.listItems().map((i) => i.title).sort(),
+        ['Dune', 'Sauvegarder'],
+      );
+    } finally {
+      copy.close();
+    }
+  });
+});

@@ -44,11 +44,21 @@ Changer `SESSION_SECRET` déconnecte tous les appareils.
 
 ## Sauvegarde de la base
 
+L'app expose `GET /api/export` (session requise) : il renvoie une copie cohérente et autonome de toute la base SQLite, même pendant que l'app tourne. Pour la récupérer depuis votre machine :
+
 ```sh
-fly ssh sftp get /data/mnemon.db ./mnemon-backup.db
+npm run export -- --url https://<app>.fly.dev              # → ./mnemon-<date>.db
+npm run export -- --url https://<app>.fly.dev --out backups/
 ```
 
-La base est en mode WAL : pour une copie parfaitement cohérente, faire la sauvegarde quand l'app est au repos (ou `fly ssh console -C "sqlite3 /data/mnemon.db '.backup /data/backup.db'"` si `sqlite3` est installé dans l'image).
+- Mot de passe : variable `MNEMON_PASSWORD`, sinon demandé au clavier (jamais en argument, pour ne pas finir dans l'historique du shell).
+- URL : `--url` ou variable `MNEMON_URL`.
+- Le script vérifie l'intégrité de la copie, affiche le nombre d'items et n'écrase jamais un fichier existant.
+- HTTPS obligatoire, sauf pour `localhost`.
+
+Pour quitter Fly.io : récupérer un export, le placer sur le nouvel hôte et pointer `DB_PATH` dessus.
+
+Sans le script, le même fichier se télécharge depuis un navigateur connecté en ouvrant `https://<app>.fly.dev/api/export`.
 
 ## Sécurité, en bref
 

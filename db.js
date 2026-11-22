@@ -174,5 +174,18 @@ export function openDb(dbPath) {
     deleteItem(id) {
       return stmts.remove.run(id).changes > 0;
     },
+
+    /**
+     * Consistent snapshot of the whole database as a standalone SQLite file (Buffer).
+     * Includes changes still sitting in the WAL, so it is safe while the app is running.
+     */
+    exportSnapshot() {
+      const snapshot = db.serialize();
+      // Header bytes 18–19 = 2 mark a WAL database; 1 = rollback journal. Switching them
+      // makes the copy a single self-contained file (no -wal/-shm created when opened).
+      snapshot[18] = 1;
+      snapshot[19] = 1;
+      return snapshot;
+    },
   };
 }

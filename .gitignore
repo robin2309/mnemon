@@ -11,3 +11,7 @@ dist/
 
 # SQLite data (local)
 data/
+
+# Exported backups (npm run export)
+*.db
+backups/
