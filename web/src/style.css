@@ -313,18 +313,23 @@ a.item-title {
 a.item-title:hover {
   text-decoration-color: currentColor;
 }
-.domain {
+.domain,
+.date {
   margin-left: 8px;
   color: var(--muted);
   font-size: 0.8rem;
   white-space: nowrap;
+}
+.domain + .date::before {
+  content: '· ';
 }
 .item-actions {
   display: flex;
   flex: none;
 }
 .is-done .item-title,
-.is-done .domain {
+.is-done .domain,
+.is-done .date {
   color: var(--faint);
   text-decoration: line-through;
 }

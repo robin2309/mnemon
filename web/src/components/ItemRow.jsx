@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { TITLE_MAX, domainOf, isHttpUrl, validateDraft } from '../utils.js';
+import { TITLE_MAX, domainOf, formatDate, isHttpUrl, validateDraft } from '../utils.js';
 
 export default function ItemRow({ item, categories, onToggle, onEdit, onDelete }) {
   const [editing, setEditing] = useState(false);
@@ -18,6 +18,7 @@ function View({ item, onToggle, onEditStart, onDelete }) {
   const checkboxId = useId();
   // Defence in depth: the server already rejects non-http(s) URLs.
   const safeUrl = item.url && isHttpUrl(item.url) ? item.url : null;
+  const created = formatDate(item.createdAt);
 
   return (
     <div className="item-view">
@@ -39,6 +40,11 @@ function View({ item, onToggle, onEditStart, onDelete }) {
           <span className="item-title">{item.title}</span>
         )}
         {safeUrl && <span className="domain">{domainOf(safeUrl)}</span>}
+        {created.short && (
+          <time className="date" dateTime={item.createdAt} title={`Ajouté le ${created.full}`}>
+            {created.short}
+          </time>
+        )}
       </div>
       <div className="item-actions">
         <button type="button" className="btn btn-ghost btn-small" onClick={onEditStart}>

@@ -20,6 +20,18 @@ export function domainOf(url) {
   }
 }
 
+const dateFmt = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' });
+const dateFmtYear = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+const dateFmtFull = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'full', timeStyle: 'short' });
+
+/** "5 nov." this year, "5 nov. 2025" otherwise. Full date+time for the tooltip. */
+export function formatDate(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return { short: '', full: '' };
+  const short = d.getFullYear() === new Date().getFullYear() ? dateFmt.format(d) : dateFmtYear.format(d);
+  return { short, full: dateFmtFull.format(d) };
+}
+
 /** Client-side validation (the server validates again). Returns an error message or null. */
 export function validateDraft({ title, url }) {
   const t = title.trim();
