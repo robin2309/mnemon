@@ -3,7 +3,9 @@ import { api } from './api.js';
 import { supabase } from './supabase.js';
 import { sortItems } from './utils.js';
 import AddForm from './components/AddForm.jsx';
+import CategoryManager from './components/CategoryManager.jsx';
 import Filters from './components/Filters.jsx';
+import Modal from './components/Modal.jsx';
 import Section from './components/Section.jsx';
 import Toast from './components/Toast.jsx';
 
@@ -14,6 +16,8 @@ export default function App() {
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [toast, setToast] = useState(null);
+  const [adding, setAdding] = useState(false);
+  const [managingCategories, setManagingCategories] = useState(false);
   const toastId = useRef(0);
 
   const notify = useCallback((message) => {
@@ -64,6 +68,13 @@ export default function App() {
     const created = await api.createCategory(label);
     setCategories((prev) => [...prev, created]);
     return created;
+  }, []);
+
+  /** Deletes an unused category; errors bubble up to the category manager. */
+  const deleteCategory = useCallback(async (category) => {
+    await api.deleteCategory(category.key);
+    setCategories((prev) => prev.filter((c) => c.key !== category.key));
+    setFilter((f) => (f === category.key ? 'all' : f));
   }, []);
 
   const editItem = useCallback(
@@ -143,7 +154,30 @@ export default function App() {
 
         {status === 'ready' && (
           <>
-            <AddForm categories={categories} onAdd={addItem} onAddCategory={addCategory} />
+            <div className="list-toolbar">
+              <button
+                type="button"
+                className="btn btn-primary btn-add"
+                aria-haspopup="dialog"
+                onClick={() => setAdding(true)}
+              >
+                <span aria-hidden="true" className="btn-add-icon">
+                  +
+                </span>
+                Ajouter une idée
+              </button>
+            </div>
+            <Modal open={adding} onClose={() => setAdding(false)} title="Nouvelle idée">
+              <AddForm
+                categories={categories}
+                onAdd={addItem}
+                onAddCategory={addCategory}
+                onDone={(draft) => {
+                  setAdding(false);
+                  notify(`Idée ajoutée : « ${draft.title} »`);
+                }}
+              />
+            </Modal>
             <Filters
               categories={categories}
               filter={filter}
@@ -164,6 +198,22 @@ export default function App() {
                 onDelete={deleteItem}
               />
             ))}
+            <div className="list-footer">
+              <button
+                type="button"
+                className="btn"
+                aria-haspopup="dialog"
+                onClick={() => setManagingCategories(true)}
+              >
+                Gérer les catégories
+              </button>
+            </div>
+            <Modal open={managingCategories} onClose={() => setManagingCategories(false)} title="Catégories">
+              {/* Mounted only while open, so an old error message does not linger. */}
+              {managingCategories && (
+                <CategoryManager categories={categories} items={items} onDelete={deleteCategory} />
+              )}
+            </Modal>
           </>
         )}
 

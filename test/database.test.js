@@ -55,9 +55,18 @@ describe('categories', () => {
     );
   });
 
-  test('categories cannot be renamed or deleted from the API (not supported yet)', async () => {
+  test('categories cannot be renamed from the API (not supported yet)', async () => {
     assert.match((await as('authenticated', A, `update public.categories set label = 'x'`)).error, /permission denied/);
-    assert.match((await as('authenticated', A, 'delete from public.categories')).error, /permission denied/);
+  });
+
+  test('a user can delete their own unused category, not those of others', async () => {
+    const { rows } = await as('authenticated', A, `insert into public.categories (label) values ('Éphémère') returning id`);
+    const id = rows[0].id;
+    // Another user's delete matches no row (row-level security), visitors have no right at all.
+    assert.equal((await as('authenticated', B, 'delete from public.categories where id = $1 returning id', [id])).rows.length, 0);
+    assert.match((await as('anon', null, 'delete from public.categories where id = $1', [id])).error, /permission denied/);
+    assert.deepEqual((await as('authenticated', A, 'delete from public.categories where id = $1 returning id', [id])).rows, [{ id }]);
+    assert.equal((await as('authenticated', A, 'select 1 from public.categories where id = $1', [id])).rows.length, 0);
   });
 
   test('API roles cannot call the seeding function', async () => {
@@ -204,6 +213,11 @@ describe('items and their categories', () => {
 
   test('a category in use cannot be deleted, even by the database owner', async () => {
     await assert.rejects(db.query('delete from public.categories where id = $1', [todoA]), /foreign key/);
+  });
+
+  test('the owner cannot delete a category in use either', async () => {
+    assert.match((await as('authenticated', A, 'delete from public.categories where id = $1', [todoA])).error ?? '', /foreign key/);
+    assert.deepEqual(await catsOf(A, idA), [todoA]);
   });
 
   test('deleting an item removes its links', async () => {

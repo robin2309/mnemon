@@ -10,7 +10,8 @@ function initialPicker(categories) {
   return { ...pickerState([]), adding: true };
 }
 
-export default function AddForm({ categories, onAdd, onAddCategory }) {
+/** Add form, shown in a modal. `onDone(item)` is called once an item has been added. */
+export default function AddForm({ categories, onAdd, onAddCategory, onDone }) {
   const ids = useId();
   const titleRef = useRef(null);
   const [title, setTitle] = useState('');
@@ -50,6 +51,7 @@ export default function AddForm({ categories, onAdd, onAddCategory }) {
       setTitle('');
       setUrl('');
       saveLastCategories(keys);
+      onDone?.(draft);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -59,11 +61,12 @@ export default function AddForm({ categories, onAdd, onAddCategory }) {
   }
 
   return (
-    <form className="add-form card" onSubmit={handleSubmit} noValidate aria-label="Ajouter une idée">
+    <form className="add-form" onSubmit={handleSubmit} noValidate>
       <div className="field">
         <label htmlFor={`${ids}-title`}>Titre</label>
         <input
           ref={titleRef}
+          data-autofocus
           id={`${ids}-title`}
           type="text"
           value={title}

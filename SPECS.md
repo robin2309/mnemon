@@ -22,10 +22,11 @@ Application web personnelle pour noter des idées de choses à **faire**, **inve
 ### 1.3 Fonctionnalités
 
 **F1 — Ajouter un item**
-- Formulaire en haut de page : titre, lien (optionnel), catégories (puces à cocher, au moins une ; mémorise les catégories du dernier ajout).
+- Bouton « + Ajouter une idée » en haut de la liste (pleine largeur sur téléphone). Il ouvre le formulaire dans une modale : titre, lien (optionnel), catégories (puces à cocher, au moins une ; mémorise les catégories du dernier ajout).
+- La modale se ferme avec ✕, Échap ou un clic à côté ; un brouillon non validé est conservé jusqu'à la réouverture.
 - Une puce « + Nouvelle » fait apparaître un champ pour saisir le nom d'une catégorie (1 à 40 caractères). À l'ajout, la catégorie est créée et l'item y est rangé, en plus des catégories cochées. Si une catégorie porte déjà ce nom (sans tenir compte de la casse), elle est réutilisée.
 - Validation : titre non vide ; au moins une catégorie ; si un lien est saisi, il doit être une URL http(s) valide.
-- Touche Entrée = valider. Après ajout, le formulaire se vide et le focus revient sur le titre.
+- Touche Entrée = valider. Après ajout, la modale se ferme, le formulaire se vide, un message « Idée ajoutée » s'affiche et le focus revient sur le bouton d'ajout.
 - Ajout rapide : si l'utilisateur colle une URL seule dans le champ titre, elle est déplacée dans le champ lien (le titre reste à saisir).
 
 **F2 — Consulter les items par catégorie**
@@ -45,6 +46,11 @@ Application web personnelle pour noter des idées de choses à **faire**, **inve
 **F5 — Supprimer un item**
 - Bouton « Supprimer » avec confirmation.
 
+**F5 bis — Gérer les catégories**
+- Bouton « Gérer les catégories » en bas de la liste. Il ouvre une modale qui liste chaque catégorie avec le nombre d'idées qui y sont rangées (terminées comprises).
+- « Supprimer » (avec confirmation) n'est possible que pour une catégorie qu'aucune idée n'utilise ; sinon le bouton est désactivé. La base refuse aussi la suppression d'une catégorie utilisée, et l'erreur s'affiche dans la modale.
+- Si la catégorie supprimée était le filtre actif, le filtre revient sur « Tout ».
+
 **F6 — Filtrer**
 - Onglets/chips en haut de liste : « Tout » + une par catégorie, pour n'afficher qu'une section (utile sur mobile).
 - Champ de recherche texte (filtre côté client sur titre et lien).
@@ -62,7 +68,7 @@ Application web personnelle pour noter des idées de choses à **faire**, **inve
 
 ### 1.5 Hors périmètre (v1)
 - Multi-utilisateurs, partage.
-- Renommer, supprimer ou réordonner les catégories.
+- Renommer ou réordonner les catégories.
 - Priorités, dates d’échéance.
 - Mode hors-ligne / synchronisation.
 - Récupération automatique du titre d'une page à partir de son URL.

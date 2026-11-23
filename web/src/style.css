@@ -210,16 +210,160 @@ select {
   font-size: 0.9rem;
 }
 
-/* --- Add form -------------------------------------------------------------- */
+/* --- Add button (top of the list) ------------------------------------------ */
+
+.list-toolbar {
+  display: flex;
+  justify-content: flex-end;
+}
+.list-toolbar + .filters {
+  margin-top: 12px;
+}
+.btn-add {
+  gap: 8px;
+  padding: 0 18px;
+}
+.btn-add-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+@media (max-width: 480px) {
+  .btn-add {
+    flex: 1; /* full width on phones: easy to reach with the thumb */
+  }
+}
+
+/* --- Modal ----------------------------------------------------------------- */
+
+.modal {
+  width: min(560px, calc(100% - 24px));
+  max-width: none;
+  max-height: calc(100dvh - 24px);
+  /* Near the top rather than centred: on phones the keyboard takes the bottom half. */
+  margin: 10vh auto auto;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 0.25);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.modal::backdrop {
+  background: rgb(0 0 0 / 0.45);
+}
+body:has(.modal[open]) {
+  overflow: hidden; /* the list behind does not scroll */
+}
+.modal-panel {
+  padding: 6px 16px 16px;
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-right: -10px;
+}
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+@media (max-width: 480px) {
+  .modal {
+    width: calc(100% - 16px);
+    margin-top: max(8px, env(safe-area-inset-top));
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .modal[open] {
+    animation: modal-in 160ms ease-out;
+  }
+  .modal[open]::backdrop {
+    animation: fade-in 160ms ease-out;
+  }
+}
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* --- Category manager (bottom of the list, in a modal) --------------------- */
+
+.list-footer {
+  display: flex;
+  justify-content: center;
+  margin-top: 28px;
+}
+.category-manager {
+  display: grid;
+  gap: 12px;
+}
+.category-manager-hint {
+  margin: 0;
+  font-size: 0.875rem;
+}
+.category-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.category-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 4px 4px 14px;
+}
+.category-row + .category-row {
+  border-top: 1px solid var(--border);
+}
+.category-row-main {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  min-width: 0;
+}
+.category-row-label {
+  overflow-wrap: anywhere;
+}
+.category-row-count {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.category-row .btn-danger:not(:disabled) {
+  color: var(--danger);
+}
+.category-row .btn-danger:disabled {
+  color: var(--faint);
+  opacity: 1;
+}
+
+/* --- Add form (inside the modal) -------------------------------------------- */
 
 .add-form {
   display: grid;
   gap: 12px;
-  padding: 14px;
 }
 .add-form > .btn-primary {
   justify-self: end;
   min-width: 120px;
+}
+@media (max-width: 480px) {
+  .add-form > .btn-primary {
+    justify-self: stretch;
+  }
 }
 
 /* --- Category picker (add and edit forms) ---------------------------------- */

@@ -23,7 +23,7 @@ test/                      node:test — utils, database rules (PGlite), import
 
 ## Data model
 
-`public.categories`: `id`, `user_id` (defaults to `auth.uid()`), `label` (trimmed, 1–40 chars, unique per user ignoring case), `created_at`. Display order is creation order (`id`). Every user gets the four defaults (À faire, À investiguer, À lire, À regarder): existing users in the migration, new ones through a `security definer` trigger on `auth.users` (`seed_default_categories`, not executable by API roles). Categories can only be added from the app (no rename / delete yet).
+`public.categories`: `id`, `user_id` (defaults to `auth.uid()`), `label` (trimmed, 1–40 chars, unique per user ignoring case), `created_at`. Display order is creation order (`id`). Every user gets the four defaults (À faire, À investiguer, À lire, À regarder): existing users in the migration, new ones through a `security definer` trigger on `auth.users` (`seed_default_categories`, not executable by API roles). Categories can be added and deleted from the app, not renamed. Deleting is allowed only for an unused category: the `item_categories` foreign key (`on delete restrict`) refuses the others with `23503`, which the client turns into a readable message (migration `20261125000000_delete_unused_categories.sql`).
 
 `public.items`:
 
@@ -47,7 +47,7 @@ The front end validates the same rules first to show readable messages; the data
 The publishable key and project URL are in the public bundle (the login screen needs them). The key is harmless on its own because access control lives in Postgres:
 
 - `anon` has no privilege on `items`, `categories` or `item_categories`, nor on the two functions.
-- `authenticated` has `select`/`delete` on `items`, and `insert`/`update` on `title, url, done` only, so owner, id and timestamps cannot be forged; on `categories`, `select` and `insert (label)` only; on `item_categories`, `select`/`delete` and `insert (item_id, category_id)`; `execute` on `create_item` / `update_item`. The trigger functions are not executable by API roles.
+- `authenticated` has `select`/`delete` on `items`, and `insert`/`update` on `title, url, done` only, so owner, id and timestamps cannot be forged; on `categories`, `select`, `insert (label)` and `delete` (own rows only, by policy); on `item_categories`, `select`/`delete` and `insert (item_id, category_id)`; `execute` on `create_item` / `update_item`. The trigger functions are not executable by API roles.
 - RLS policies restrict every operation to `auth.uid() = user_id`.
 - Sign-ups are disabled in the Supabase dashboard; the single account is created by hand.
 - The client refuses to start with a secret / `service_role` key (`isSecretKey`).
