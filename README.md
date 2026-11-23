@@ -10,8 +10,8 @@ Application web personnelle pour noter des idées à **faire**, **investiguer**,
 
 Le front contient l'URL du projet Supabase et sa **clé publishable** (ex-clé `anon`). C'est voulu et inévitable : l'écran de connexion doit pouvoir parler à Supabase. Cette clé ne donne accès à **rien** sans être connecté :
 
-- un visiteur non connecté n'a aucun droit sur la table `items` (lecture comme écriture) ;
-- un utilisateur connecté ne voit et ne modifie que **ses** items (row-level security sur `user_id`) ;
+- un visiteur non connecté n'a aucun droit sur les tables `items`, `categories` et `item_categories` (lecture comme écriture) ;
+- un utilisateur connecté ne voit et ne modifie que **ses** items et catégories (row-level security sur `user_id`), et ne peut ranger un item que dans ses propres catégories ;
 - le propriétaire, l'id et les dates sont fixés par la base, pas par le navigateur ;
 - les inscriptions sont fermées (à configurer, voir plus bas) : personne d'autre ne peut créer de compte.
 
@@ -22,7 +22,7 @@ Ces règles sont dans [`supabase/migrations/`](supabase/migrations/) et testées
 ## Mise en place de Supabase (une fois)
 
 1. Créer un projet sur [supabase.com](https://supabase.com).
-2. **SQL Editor** → coller et exécuter [`supabase/migrations/20261122000000_create_items.sql`](supabase/migrations/20261122000000_create_items.sql).
+2. **SQL Editor** → coller et exécuter, **dans l'ordre**, chaque fichier de [`supabase/migrations/`](supabase/migrations/).
    (Ou, avec la CLI Supabase : `supabase link` puis `supabase db push`.)
 3. **Authentication → Users → Add user** : créer votre compte (email + mot de passe long), en cochant *Auto Confirm User*.
 4. **Authentication → Sign In / Providers** : désactiver **Allow new users to sign up**. Indispensable : sinon n'importe qui pourrait se créer un compte (il ne verrait pas vos items, mais pourrait remplir la base).
@@ -54,7 +54,7 @@ npm run export                       # → ./mnemon-<date>.json
 npm run export -- --out backups/
 ```
 
-Le script lit la config Supabase dans `.env`, se connecte avec votre compte (`MNEMON_EMAIL` / `MNEMON_PASSWORD`, sinon demandés au clavier, jamais en argument) et écrit tous vos items en JSON. Il n'écrase jamais un fichier existant.
+Le script lit la config Supabase dans `.env`, se connecte avec votre compte (`MNEMON_EMAIL` / `MNEMON_PASSWORD`, sinon demandés au clavier, jamais en argument) et écrit toutes vos catégories et vos items en JSON. Il n'écrase jamais un fichier existant.
 
 Pour restaurer, ou pour **migrer les données de l'ancienne version Fly.io** (fichier SQLite `.db`) :
 
@@ -63,6 +63,6 @@ npm run import -- mnemon-2026-11-22.json --email vous@exemple.fr --out import.sq
 npm run import -- ancien-mnemon.db       --email vous@exemple.fr --out import.sql
 ```
 
-Puis coller `import.sql` dans le **SQL Editor** de Supabase et l'exécuter. Le script ne contacte rien : il génère seulement le SQL (dans une transaction, en gardant dates et états « fait », rattaché au compte de cet email).
+Puis coller `import.sql` dans le **SQL Editor** de Supabase et l'exécuter. Le script ne contacte rien : il génère seulement le SQL (dans une transaction, en gardant dates et états « fait », rattaché au compte de cet email ; les catégories manquantes sont créées, celles qui existent déjà sont réutilisées).
 
 Supabase fait aussi ses propres sauvegardes quotidiennes de la base (selon l'offre).

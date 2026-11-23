@@ -52,18 +52,31 @@ async function main() {
   const { error: authError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
   if (authError) fail(authError.code === 'invalid_credentials' ? 'email ou mot de passe incorrect.' : authError.message);
 
-  const items = [];
-  try {
+  async function selectAll(table, columns) {
+    const rows = [];
     for (let from = 0; ; from += PAGE_SIZE) {
-      const { data, error } = await supabase
-        .from('items')
-        .select('id, title, url, category, done, created_at, updated_at')
-        .order('id')
-        .range(from, from + PAGE_SIZE - 1);
-      if (error) fail(`lecture impossible : ${error.message}`);
-      items.push(...data);
-      if (data.length < PAGE_SIZE) break;
+      const { data, error } = await supabase.from(table).select(columns).order('id').range(from, from + PAGE_SIZE - 1);
+      if (error) fail(`lecture impossible (${table}) : ${error.message}`);
+      rows.push(...data);
+      if (data.length < PAGE_SIZE) return rows;
     }
+  }
+
+  let categories, items;
+  try {
+    // Categories by name (in display order), items with their categories' names.
+    const rows = await selectAll('categories', 'id, label');
+    const labelOf = new Map(rows.map((c) => [c.id, c.label]));
+    categories = rows.map((c) => c.label);
+    items = (await selectAll('items', 'id, title, url, done, created_at, updated_at, item_categories(category_id)')).map(
+      ({ item_categories, ...item }) => ({
+        ...item,
+        categories: item_categories
+          .map((l) => l.category_id)
+          .sort((a, b) => a - b)
+          .map((id) => labelOf.get(id)),
+      }),
+    );
   } finally {
     await supabase.auth.signOut({ scope: 'local' });
   }
@@ -82,10 +95,12 @@ async function main() {
   } else {
     fs.mkdirSync(path.dirname(outPath), { recursive: true });
   }
-  const body = JSON.stringify({ app: 'mnemon', version: 1, exportedAt, items }, null, 2);
+  // version 3: each item has a list of category names. Version 2 had one name per item
+  // (`category`), version 1 one of the fixed keys todo / investigate / read / watch.
+  const body = JSON.stringify({ app: 'mnemon', version: 3, exportedAt, categories, items }, null, 2);
   fs.writeFileSync(outPath, `${body}\n`, { flag: 'wx' }); // never overwrite an existing backup
 
-  console.error(`Export OK : ${items.length} items`);
+  console.error(`Export OK : ${categories.length} catégories, ${items.length} items`);
   console.log(outPath);
 }
 

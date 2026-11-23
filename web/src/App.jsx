@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from './api.js';
 import { supabase } from './supabase.js';
-import { CATEGORIES as categories, CATEGORY_ORDER as categoryOrder, sortItems } from './utils.js';
+import { sortItems } from './utils.js';
 import AddForm from './components/AddForm.jsx';
 import Filters from './components/Filters.jsx';
 import Section from './components/Section.jsx';
 import Toast from './components/Toast.jsx';
 
 export default function App() {
+  const [categories, setCategories] = useState([]);
   const [items, setItems] = useState([]);
   const [status, setStatus] = useState('loading'); // loading | ready | error
   const [filter, setFilter] = useState('all');
@@ -25,7 +26,9 @@ export default function App() {
   const load = useCallback(async () => {
     setStatus('loading');
     try {
-      setItems(await api.items());
+      const [cats, its] = await Promise.all([api.categories(), api.items()]);
+      setCategories(cats);
+      setItems(sortItems(its));
       setStatus('ready');
     } catch (err) {
       setStatus('error');
@@ -41,12 +44,9 @@ export default function App() {
   const upsert = useCallback(
     (item) =>
       setItems((prev) =>
-        sortItems(
-          prev.some((i) => i.id === item.id) ? prev.map((i) => (i.id === item.id ? item : i)) : [...prev, item],
-          categoryOrder,
-        ),
+        sortItems(prev.some((i) => i.id === item.id) ? prev.map((i) => (i.id === item.id ? item : i)) : [...prev, item]),
       ),
-    [categoryOrder],
+    [],
   );
 
   // --- Actions ----------------------------------------------------------------
@@ -59,9 +59,16 @@ export default function App() {
     [upsert],
   );
 
+  /** Creates a category and returns it; errors bubble up to the form. */
+  const addCategory = useCallback(async (label) => {
+    const created = await api.createCategory(label);
+    setCategories((prev) => [...prev, created]);
+    return created;
+  }, []);
+
   const editItem = useCallback(
     async (id, patch) => {
-      const updated = await api.update(id, patch); // errors bubble up to the row
+      const updated = await api.save(id, patch); // errors bubble up to the row
       upsert(updated);
     },
     [upsert],
@@ -72,7 +79,7 @@ export default function App() {
       const optimistic = { ...item, done: !item.done };
       upsert(optimistic);
       try {
-        upsert(await api.update(item.id, { done: optimistic.done }));
+        upsert(await api.setDone(item.id, optimistic.done));
       } catch (err) {
         upsert(item); // rollback
         notify(`Impossible de mettre à jour « ${item.title} » : ${err.message}`);
@@ -110,9 +117,10 @@ export default function App() {
       .filter((c) => filter === 'all' || c.key === filter)
       .map((c) => ({
         category: c,
-        items: items.filter((i) => i.category === c.key && matches(i)),
+        // An item with several categories is listed in each of their sections.
+        items: items.filter((i) => i.categories.includes(c.key) && matches(i)),
       }));
-  }, [items, filter, query]);
+  }, [categories, items, filter, query]);
 
   return (
     <>
@@ -133,9 +141,9 @@ export default function App() {
           </div>
         )}
 
-        {status !== 'error' && (
+        {status === 'ready' && (
           <>
-            <AddForm categories={categories} onAdd={addItem} />
+            <AddForm categories={categories} onAdd={addItem} onAddCategory={addCategory} />
             <Filters
               categories={categories}
               filter={filter}
@@ -152,6 +160,7 @@ export default function App() {
                 searching={query !== ''}
                 onToggle={toggleDone}
                 onEdit={editItem}
+                onAddCategory={addCategory}
                 onDelete={deleteItem}
               />
             ))}

@@ -217,13 +217,27 @@ select {
   gap: 12px;
   padding: 14px;
 }
-.add-row {
-  display: flex;
-  align-items: flex-end;
-  gap: 10px;
+.add-form > .btn-primary {
+  justify-self: end;
+  min-width: 120px;
 }
-.grow {
-  flex: 1;
+
+/* --- Category picker (add and edit forms) ---------------------------------- */
+
+.category-picker {
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.category-picker legend {
+  padding: 0;
+  margin-bottom: 4px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.chip-new {
+  border-style: dashed;
 }
 
 /* --- Filters --------------------------------------------------------------- */
@@ -345,6 +359,21 @@ a.item-title:hover {
 }
 .domain + .date::before {
   content: '· ';
+}
+.tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+.tag {
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.75rem;
+  white-space: nowrap;
 }
 .item-actions {
   display: flex;

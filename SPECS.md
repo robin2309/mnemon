@@ -15,20 +15,22 @@ Application web personnelle pour noter des idées de choses à **faire**, **inve
 |---|---|---|
 | Titre | Oui | Texte libre, 1 à 200 caractères |
 | Lien | Non | URL `http://` ou `https://` |
-| Catégorie | Oui | Une parmi : `À faire`, `À investiguer`, `À lire`, `À regarder` |
+| Catégories | Oui | Une ou plusieurs catégories de l'utilisateur. Au départ : `À faire`, `À investiguer`, `À lire`, `À regarder` ; d'autres peuvent être ajoutées |
 | Fait | — | Booléen, `false` à la création |
 | Date de création | — | Automatique |
 
 ### 1.3 Fonctionnalités
 
 **F1 — Ajouter un item**
-- Formulaire en haut de page : titre, lien (optionnel), catégorie (sélecteur, mémorise la dernière catégorie utilisée).
-- Validation : titre non vide ; si un lien est saisi, il doit être une URL http(s) valide.
+- Formulaire en haut de page : titre, lien (optionnel), catégories (puces à cocher, au moins une ; mémorise les catégories du dernier ajout).
+- Une puce « + Nouvelle » fait apparaître un champ pour saisir le nom d'une catégorie (1 à 40 caractères). À l'ajout, la catégorie est créée et l'item y est rangé, en plus des catégories cochées. Si une catégorie porte déjà ce nom (sans tenir compte de la casse), elle est réutilisée.
+- Validation : titre non vide ; au moins une catégorie ; si un lien est saisi, il doit être une URL http(s) valide.
 - Touche Entrée = valider. Après ajout, le formulaire se vide et le focus revient sur le titre.
 - Ajout rapide : si l'utilisateur colle une URL seule dans le champ titre, elle est déplacée dans le champ lien (le titre reste à saisir).
 
 **F2 — Consulter les items par catégorie**
-- La page affiche une section par catégorie, dans l'ordre : À faire, À investiguer, À lire, À regarder.
+- La page affiche une section par catégorie, dans l'ordre de création (d'abord À faire, À investiguer, À lire, À regarder, puis les catégories ajoutées).
+- Un item rangé dans plusieurs catégories apparaît dans chacune de leurs sections, avec ses autres catégories affichées en petites étiquettes.
 - Chaque section affiche son nombre d'items non faits.
 - Dans une section : items non faits d'abord (plus récent en haut), puis items faits (grisés, barrés), repliés par défaut derrière « Afficher les X terminés ».
 - Une section vide affiche un message discret (« Rien pour l'instant »).
@@ -38,7 +40,7 @@ Application web personnelle pour noter des idées de choses à **faire**, **inve
 - Case à cocher sur chaque item. Changement immédiat (UI optimiste).
 
 **F4 — Modifier un item**
-- Bouton « Modifier » : édition en place du titre, du lien et de la catégorie. Enregistrer / Annuler (Échap).
+- Bouton « Modifier » : édition en place du titre, du lien et des catégories (mêmes puces que l'ajout, « + Nouvelle » compris). Enregistrer / Annuler (Échap).
 
 **F5 — Supprimer un item**
 - Bouton « Supprimer » avec confirmation.
@@ -60,7 +62,8 @@ Application web personnelle pour noter des idées de choses à **faire**, **inve
 
 ### 1.5 Hors périmètre (v1)
 - Multi-utilisateurs, partage.
-- Catégories personnalisées, tags, priorités, dates d'échéance.
+- Renommer, supprimer ou réordonner les catégories.
+- Priorités, dates d’échéance.
 - Mode hors-ligne / synchronisation.
 - Récupération automatique du titre d'une page à partir de son URL.
 
@@ -98,24 +101,47 @@ Les deux sont lues au build (Netlify ou `.env` en local) et se retrouvent dans l
 
 ### 2.4 Modèle de données
 ```sql
+create table public.categories (
+  id          bigint      generated always as identity primary key,
+  user_id     uuid        not null default auth.uid() references auth.users (id) on delete cascade,
+  label       text        not null check (char_length(label) between 1 and 40 and label = btrim(label)),
+  created_at  timestamptz not null default now(),
+  unique (id, user_id)
+);
+-- un nom unique par utilisateur, sans tenir compte de la casse
+create unique index categories_user_label_idx on public.categories (user_id, lower(label));
+
 create table public.items (
   id          bigint generated always as identity primary key,
   user_id     uuid        not null default auth.uid() references auth.users (id) on delete cascade,
   title       text        not null check (char_length(title) between 1 and 200 and title = btrim(title)),
   url         text        check (url is null or (char_length(url) <= 2048 and url ~* '^https?://\S+$')),
-  category    text        not null check (category in ('todo', 'investigate', 'read', 'watch')),
   done        boolean     not null default false,
   created_at  timestamptz not null default now(),
-  updated_at  timestamptz not null default now()   -- mis à jour par trigger
+  updated_at  timestamptz not null default now(),  -- mis à jour par trigger
+  unique (id, user_id)
+);
+
+-- catégories de chaque item (une ou plusieurs)
+create table public.item_categories (
+  item_id     bigint not null,
+  category_id bigint not null,
+  user_id     uuid   not null default auth.uid(),
+  primary key (item_id, category_id),
+  foreign key (item_id, user_id)     references public.items (id, user_id) on delete cascade,
+  foreign key (category_id, user_id) references public.categories (id, user_id) on delete restrict
 );
 ```
-- Libellés affichés : `todo` → À faire, `investigate` → À investiguer, `read` → À lire, `watch` → À regarder. La liste est définie à un seul endroit côté front (`CATEGORIES` dans `web/src/utils.js`) et doit rester alignée avec la contrainte SQL.
-- Ordre d'affichage : catégorie, puis non faits d'abord, puis plus récents d'abord (tri côté client).
+- Chaque utilisateur reçoit les quatre catégories par défaut (À faire, À investiguer, À lire, À regarder) : un trigger sur `auth.users` les crée à l'inscription.
+- Les clés étrangères composites (avec `user_id`) garantissent qu'un lien relie un item et une catégorie du même utilisateur. Supprimer un item supprime ses liens ; une catégorie utilisée ne peut pas être supprimée.
+- Tout item a au moins une catégorie : vérifié par des triggers de contrainte différés (en fin de transaction), à la création de l'item et à la suppression d'un lien.
+- Création et modification passent par deux fonctions SQL, `create_item(titre, lien, ids)` et `update_item(id, titre, lien, ids)` : l'item et ses catégories sont écrits dans une seule transaction. Elles s'exécutent avec les droits de l'appelant (`security invoker`), donc sous les mêmes règles que des requêtes directes.
+- Ordre d'affichage dans une section : non faits d'abord, puis plus récents d'abord (tri côté client).
 
 ### 2.5 Accès aux données
-Le front lit et écrit `public.items` directement via supabase-js. La sécurité est portée par la base (fichier `supabase/migrations/…_create_items.sql`) :
-- rôle `anon` (non connecté) : aucun droit sur la table ;
-- rôle `authenticated` : `select` / `delete`, et `insert` / `update` limités aux colonnes `title`, `url`, `category`, `done` ;
+Le front lit et écrit `public.items`, `public.categories` et `public.item_categories` via supabase-js (requêtes directes et les deux fonctions ci-dessus). La sécurité est portée par la base (fichiers de `supabase/migrations/`) :
+- rôle `anon` (non connecté) : aucun droit sur ces tables ;
+- rôle `authenticated` : sur `items`, `select` / `delete`, et `insert` / `update` limités aux colonnes `title`, `url`, `done` ; sur `categories`, `select` et `insert` du seul `label` ; sur `item_categories`, `select` / `delete` et `insert` de `item_id`, `category_id` ; `execute` sur `create_item` et `update_item` ;
 - row-level security : chaque opération est limitée aux lignes où `user_id = auth.uid()` ;
 - validation : les contraintes `check` ci-dessus ; le front applique les mêmes règles avant envoi pour afficher des messages lisibles.
 
@@ -143,7 +169,7 @@ Le front lit et écrit `public.items` directement via supabase-js. La sécurité
 3. Ajouter un item avec le lien `https://www.youtube.com/watch?v=x` : titre cliquable, `youtube.com` affiché.
 4. Un lien `javascript:alert(1)` ou `ftp://x` est refusé avec message affiché (et rejeté par la base s'il est envoyé directement).
 5. Cocher un item le passe dans les « terminés » repliés ; le décocher le remet en haut.
-6. Modifier la catégorie d'un item le déplace dans la bonne section.
+6. Modifier les catégories d'un item le fait apparaître dans les bonnes sections (et seulement celles-là) ; un item sans catégorie est refusé.
 7. Supprimer demande confirmation puis retire l'item.
 8. Après un redéploiement Netlify, les items sont toujours là.
 9. Un item ajouté depuis le téléphone apparaît sur l'ordinateur après rechargement.

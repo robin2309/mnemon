@@ -1,6 +1,16 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { CATEGORY_ORDER, isSecretKey, sortItems, toItem, toRow, validateDraft } from '../web/src/utils.js';
+import {
+  findCategoryByLabel,
+  isSecretKey,
+  sortItems,
+  toCategory,
+  toItem,
+  toItemParams,
+  toRow,
+  validateCategoryLabel,
+  validateDraft,
+} from '../web/src/utils.js';
 
 const jwt = (payload) =>
   ['e30', Buffer.from(JSON.stringify(payload)).toString('base64url'), 'sig'].join('.');
@@ -15,20 +25,46 @@ test('isSecretKey: refuses secret and service_role keys, accepts publishable/ano
 });
 
 test('toRow: keeps writable fields only, trims, empty link → null', () => {
-  assert.deepEqual(toRow({ title: '  Dune ', url: '  ', category: 'read', id: 3, user_id: 'x' }), {
+  assert.deepEqual(toRow({ title: '  Dune ', url: '  ', categories: ['7'], id: 3, user_id: 'x' }), {
     title: 'Dune',
     url: null,
-    category: 'read',
   });
   assert.deepEqual(toRow({ done: true }), { done: true });
   assert.deepEqual(toRow({ url: ' https://a.b ' }), { url: 'https://a.b' });
 });
 
-test('toItem: database row → UI item', () => {
+test('toItemParams: draft → create_item / update_item parameters', () => {
+  assert.deepEqual(toItemParams({ title: ' Dune ', url: '', categories: ['7', '2', '7'] }), {
+    p_title: 'Dune',
+    p_url: null,
+    p_category_ids: [7, 2],
+  });
+});
+
+test('toItem / toCategory: database rows → UI objects keyed by id string', () => {
   assert.deepEqual(
-    toItem({ id: 1, title: 't', url: null, category: 'todo', done: false, created_at: 'c', updated_at: 'u' }),
-    { id: 1, title: 't', url: null, category: 'todo', done: false, createdAt: 'c', updatedAt: 'u' },
+    toItem({
+      id: 1,
+      title: 't',
+      url: null,
+      done: false,
+      created_at: 'c',
+      updated_at: 'u',
+      item_categories: [{ category_id: 12 }, { category_id: 7 }],
+    }),
+    { id: 1, title: 't', url: null, categories: ['7', '12'], done: false, createdAt: 'c', updatedAt: 'u' },
   );
+  assert.deepEqual(toCategory({ id: 7, label: 'Podcasts' }), { key: '7', label: 'Podcasts' });
+});
+
+test('category labels: validation and case-insensitive lookup', () => {
+  assert.equal(validateCategoryLabel(' Podcasts '), null);
+  assert.ok(validateCategoryLabel('  '));
+  assert.ok(validateCategoryLabel('a'.repeat(41)));
+  const cats = [{ key: '1', label: 'À faire' }, { key: '2', label: 'Podcasts' }];
+  assert.equal(findCategoryByLabel(cats, ' podcasts ')?.key, '2');
+  assert.equal(findCategoryByLabel(cats, 'à FAIRE')?.key, '1');
+  assert.equal(findCategoryByLabel(cats, 'Films'), null);
 });
 
 test('validateDraft', () => {
@@ -36,14 +72,16 @@ test('validateDraft', () => {
   assert.ok(validateDraft({ title: ' ', url: '' }));
   assert.ok(validateDraft({ title: 'x', url: 'javascript:alert(1)' }));
   assert.ok(validateDraft({ title: 'a'.repeat(201), url: '' }));
+  assert.equal(validateDraft({ title: 'x', url: '', categories: ['1'] }), null);
+  assert.ok(validateDraft({ title: 'x', url: '', categories: [] }));
 });
 
-test('sortItems: category order, not done first, newest first', () => {
+test('sortItems: not done first, newest first, then highest id', () => {
   const items = [
-    { id: 1, category: 'read', done: false, createdAt: '2026-01-01' },
-    { id: 2, category: 'todo', done: true, createdAt: '2026-01-03' },
-    { id: 3, category: 'todo', done: false, createdAt: '2026-01-01' },
-    { id: 4, category: 'todo', done: false, createdAt: '2026-01-02' },
+    { id: 1, done: false, createdAt: '2026-01-01' },
+    { id: 2, done: true, createdAt: '2026-01-03' },
+    { id: 3, done: false, createdAt: '2026-01-01' },
+    { id: 4, done: false, createdAt: '2026-01-02' },
   ];
-  assert.deepEqual(sortItems(items, CATEGORY_ORDER).map((i) => i.id), [4, 3, 2, 1]);
+  assert.deepEqual(sortItems(items).map((i) => i.id), [4, 3, 1, 2]);
 });

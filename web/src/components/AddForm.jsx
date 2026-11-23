@@ -1,15 +1,21 @@
 import { useId, useRef, useState } from 'react';
-import { TITLE_MAX, isHttpUrl, loadLastCategory, saveLastCategory, validateDraft } from '../utils.js';
+import { TITLE_MAX, isHttpUrl, loadLastCategories, saveLastCategories, validateDraft } from '../utils.js';
+import CategoryPicker, { pickerState, resolvePicker, validatePicker } from './CategoryPicker.jsx';
 
-export default function AddForm({ categories, onAdd }) {
+/** Categories picked for the previous item if they still exist, else the first one. */
+function initialPicker(categories) {
+  const last = loadLastCategories().filter((k) => categories.some((c) => c.key === k));
+  if (last.length > 0) return pickerState(last);
+  if (categories.length > 0) return pickerState([categories[0].key]);
+  return { ...pickerState([]), adding: true };
+}
+
+export default function AddForm({ categories, onAdd, onAddCategory }) {
   const ids = useId();
   const titleRef = useRef(null);
   const [title, setTitle] = useState('');
   const [url, setUrl] = useState('');
-  const [category, setCategory] = useState(() => {
-    const last = loadLastCategory();
-    return categories.some((c) => c.key === last) ? last : categories[0].key;
-  });
+  const [picker, setPicker] = useState(() => initialPicker(categories));
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
 
@@ -29,8 +35,8 @@ export default function AddForm({ categories, onAdd }) {
   async function handleSubmit(e) {
     e.preventDefault();
     if (busy) return;
-    const draft = { title: title.trim(), url: url.trim(), category };
-    const msg = validateDraft(draft);
+    const draft = { title: title.trim(), url: url.trim() };
+    const msg = validateDraft(draft) ?? validatePicker(picker);
     if (msg) {
       setError(msg);
       return;
@@ -38,10 +44,12 @@ export default function AddForm({ categories, onAdd }) {
     setBusy(true);
     setError(null);
     try {
-      await onAdd(draft);
+      const { keys, state } = await resolvePicker(picker, categories, onAddCategory);
+      setPicker(state);
+      await onAdd({ ...draft, categories: keys });
       setTitle('');
       setUrl('');
-      saveLastCategory(category);
+      saveLastCategories(keys);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -81,21 +89,10 @@ export default function AddForm({ categories, onAdd }) {
           onChange={(e) => setUrl(e.target.value)}
         />
       </div>
-      <div className="add-row">
-        <div className="field grow">
-          <label htmlFor={`${ids}-cat`}>Catégorie</label>
-          <select id={`${ids}-cat`} value={category} onChange={(e) => setCategory(e.target.value)}>
-            {categories.map((c) => (
-              <option key={c.key} value={c.key}>
-                {c.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <button type="submit" className="btn btn-primary" disabled={busy}>
-          Ajouter
-        </button>
-      </div>
+      <CategoryPicker categories={categories} value={picker} onChange={setPicker} />
+      <button type="submit" className="btn btn-primary" disabled={busy}>
+        Ajouter
+      </button>
       {error && (
         <p id={`${ids}-err`} className="form-error" role="alert">
           {error}

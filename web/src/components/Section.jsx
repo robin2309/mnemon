@@ -1,14 +1,23 @@
 import { useId, useState } from 'react';
 import ItemRow from './ItemRow.jsx';
 
-export default function Section({ category, categories, items, searching, onToggle, onEdit, onDelete }) {
+export default function Section({ category, categories, items, searching, onToggle, onEdit, onAddCategory, onDelete }) {
   const headingId = useId();
   const [showDone, setShowDone] = useState(false);
   const open = items.filter((i) => !i.done);
   const done = items.filter((i) => i.done);
 
   const row = (item) => (
-    <ItemRow key={item.id} item={item} categories={categories} onToggle={onToggle} onEdit={onEdit} onDelete={onDelete} />
+    <ItemRow
+      key={item.id}
+      item={item}
+      section={category.key}
+      categories={categories}
+      onToggle={onToggle}
+      onEdit={onEdit}
+      onAddCategory={onAddCategory}
+      onDelete={onDelete}
+    />
   );
 
   return (

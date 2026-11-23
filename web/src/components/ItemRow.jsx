@@ -1,20 +1,29 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { TITLE_MAX, domainOf, formatDate, isHttpUrl, validateDraft } from '../utils.js';
+import CategoryPicker, { pickerState, resolvePicker, validatePicker } from './CategoryPicker.jsx';
 
-export default function ItemRow({ item, categories, onToggle, onEdit, onDelete }) {
+export default function ItemRow({ item, section, categories, onToggle, onEdit, onAddCategory, onDelete }) {
   const [editing, setEditing] = useState(false);
+  // The item's other categories (it is also listed in their sections).
+  const others = categories.filter((c) => c.key !== section && item.categories.includes(c.key));
   return (
     <li className={`item${item.done ? ' is-done' : ''}`}>
       {editing ? (
-        <EditForm item={item} categories={categories} onSave={onEdit} onClose={() => setEditing(false)} />
+        <EditForm
+          item={item}
+          categories={categories}
+          onSave={onEdit}
+          onAddCategory={onAddCategory}
+          onClose={() => setEditing(false)}
+        />
       ) : (
-        <View item={item} onToggle={onToggle} onEditStart={() => setEditing(true)} onDelete={onDelete} />
+        <View item={item} others={others} onToggle={onToggle} onEditStart={() => setEditing(true)} onDelete={onDelete} />
       )}
     </li>
   );
 }
 
-function View({ item, onToggle, onEditStart, onDelete }) {
+function View({ item, others, onToggle, onEditStart, onDelete }) {
   const checkboxId = useId();
   // Defence in depth: the server already rejects non-http(s) URLs.
   const safeUrl = item.url && isHttpUrl(item.url) ? item.url : null;
@@ -45,6 +54,15 @@ function View({ item, onToggle, onEditStart, onDelete }) {
             {created.short}
           </time>
         )}
+        {others.length > 0 && (
+          <span className="tags" aria-label={`Aussi dans : ${others.map((c) => c.label).join(', ')}`}>
+            {others.map((c) => (
+              <span key={c.key} className="tag">
+                {c.label}
+              </span>
+            ))}
+          </span>
+        )}
       </div>
       <div className="item-actions">
         <button type="button" className="btn btn-ghost btn-small" onClick={onEditStart}>
@@ -58,12 +76,12 @@ function View({ item, onToggle, onEditStart, onDelete }) {
   );
 }
 
-function EditForm({ item, categories, onSave, onClose }) {
+function EditForm({ item, categories, onSave, onAddCategory, onClose }) {
   const ids = useId();
   const titleRef = useRef(null);
   const [title, setTitle] = useState(item.title);
   const [url, setUrl] = useState(item.url ?? '');
-  const [category, setCategory] = useState(item.category);
+  const [picker, setPicker] = useState(() => pickerState(item.categories));
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
 
@@ -75,8 +93,8 @@ function EditForm({ item, categories, onSave, onClose }) {
   async function handleSubmit(e) {
     e.preventDefault();
     if (busy) return;
-    const draft = { title: title.trim(), url: url.trim(), category };
-    const msg = validateDraft(draft);
+    const draft = { title: title.trim(), url: url.trim() };
+    const msg = validateDraft(draft) ?? validatePicker(picker);
     if (msg) {
       setError(msg);
       return;
@@ -84,7 +102,9 @@ function EditForm({ item, categories, onSave, onClose }) {
     setBusy(true);
     setError(null);
     try {
-      await onSave(item.id, draft);
+      const { keys, state } = await resolvePicker(picker, categories, onAddCategory);
+      setPicker(state);
+      await onSave(item.id, { ...draft, categories: keys });
       onClose();
     } catch (err) {
       setError(err.message);
@@ -123,16 +143,7 @@ function EditForm({ item, categories, onSave, onClose }) {
           onChange={(e) => setUrl(e.target.value)}
         />
       </div>
-      <div className="field">
-        <label htmlFor={`${ids}-cat`}>Catégorie</label>
-        <select id={`${ids}-cat`} value={category} onChange={(e) => setCategory(e.target.value)}>
-          {categories.map((c) => (
-            <option key={c.key} value={c.key}>
-              {c.label}
-            </option>
-          ))}
-        </select>
-      </div>
+      <CategoryPicker categories={categories} value={picker} onChange={setPicker} />
       {error && (
         <p className="form-error" role="alert">
           {error}

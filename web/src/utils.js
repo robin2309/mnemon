@@ -1,13 +1,6 @@
 export const TITLE_MAX = 200;
 
-/** Single source of truth for categories, in display order (keys mirror the database check). */
-export const CATEGORIES = Object.freeze([
-  { key: 'todo', label: 'À faire' },
-  { key: 'investigate', label: 'À investiguer' },
-  { key: 'read', label: 'À lire' },
-  { key: 'watch', label: 'À regarder' },
-]);
-export const CATEGORY_ORDER = CATEGORIES.map((c) => c.key);
+export const CATEGORY_LABEL_MAX = 40;
 
 /** True only for absolute http(s) URLs. Mirrors the database check. */
 export function isHttpUrl(value) {
@@ -41,48 +34,83 @@ export function formatDate(iso) {
   return { short, full: dateFmtFull.format(d) };
 }
 
-/** Client-side validation (the database checks again). Returns an error message or null. */
-export function validateDraft({ title, url }) {
+/**
+ * Client-side validation (the database checks again). Returns an error message or null.
+ * `categories` is checked only when given.
+ */
+export function validateDraft({ title, url, categories }) {
   const t = title.trim();
   if (!t) return 'Le titre est obligatoire.';
   if (t.length > TITLE_MAX) return `Le titre doit faire au plus ${TITLE_MAX} caractères.`;
   if (url.trim() && !isHttpUrl(url)) return 'Le lien doit être une URL http(s) valide.';
+  if (categories && categories.length === 0) return 'Choisissez au moins une catégorie.';
   return null;
 }
 
-/** Display order: category order, not-done first, newest first. */
-export function sortItems(items, categoryOrder) {
-  const rank = new Map(categoryOrder.map((k, i) => [k, i]));
+/** Category name check, mirroring the database. Returns an error message or null. */
+export function validateCategoryLabel(label) {
+  const l = label.trim();
+  if (!l) return 'Le nom de la catégorie est obligatoire.';
+  if (l.length > CATEGORY_LABEL_MAX) return `Le nom de la catégorie doit faire au plus ${CATEGORY_LABEL_MAX} caractères.`;
+  return null;
+}
+
+/** Existing category with this name, ignoring case and surrounding spaces. */
+export function findCategoryByLabel(categories, label) {
+  const wanted = label.trim().toLocaleLowerCase('fr');
+  return categories.find((c) => c.label.toLocaleLowerCase('fr') === wanted) ?? null;
+}
+
+/** Display order within a section: not-done first, newest first. */
+export function sortItems(items) {
   return [...items].sort(
     (a, b) =>
-      (rank.get(a.category) ?? 99) - (rank.get(b.category) ?? 99) ||
       Number(a.done) - Number(b.done) ||
       (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0) ||
       b.id - a.id,
   );
 }
 
-/** Database row (snake_case) → item used by the UI. */
+/**
+ * Database category row → category used by the UI. The key is the id as a string, so it
+ * can be used directly as a <select> value or filter key.
+ */
+export function toCategory(row) {
+  return { key: String(row.id), label: row.label };
+}
+
+/**
+ * Database row (snake_case, with its embedded item_categories) → item used by the UI.
+ * `categories` holds category keys in display order (creation order = id order).
+ */
 export function toItem(row) {
   return {
     id: row.id,
     title: row.title,
     url: row.url ?? null,
-    category: row.category,
+    categories: (row.item_categories ?? [])
+      .map((link) => link.category_id)
+      .sort((a, b) => a - b)
+      .map(String),
     done: row.done === true,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
 }
 
-/** Keeps only writable fields, trimmed; an empty link becomes null. */
+/** Keeps only writable item fields, trimmed; an empty link becomes null. */
 export function toRow(fields) {
   const row = {};
   if ('title' in fields) row.title = String(fields.title).trim();
   if ('url' in fields) row.url = fields.url == null || String(fields.url).trim() === '' ? null : String(fields.url).trim();
-  if ('category' in fields) row.category = fields.category;
   if ('done' in fields) row.done = Boolean(fields.done);
   return row;
+}
+
+/** Item draft { title, url, categories } → parameters of the create_item / update_item functions. */
+export function toItemParams(draft) {
+  const { title, url } = toRow({ title: draft.title, url: draft.url });
+  return { p_title: title, p_url: url, p_category_ids: [...new Set(draft.categories)].map(Number) };
 }
 
 /**
@@ -102,28 +130,25 @@ export function isSecretKey(key) {
   }
 }
 
-const LAST_CATEGORY_KEY = 'mnemon.lastCategory';
-const LEGACY_LAST_CATEGORY_KEY = 'ideas.lastCategory'; // name used before the app became Mnémon
+const LAST_CATEGORIES_KEY = 'mnemon.lastCategories';
+// Older keys: one category per item ('mnemon.lastCategory', 'ideas.lastCategory' before
+// the app became Mnémon). They held fixed names, not ids, so they are just dropped.
+const LEGACY_KEYS = ['mnemon.lastCategory', 'ideas.lastCategory'];
 
-export function loadLastCategory() {
+/** Category keys picked for the previous item (may include deleted ones). */
+export function loadLastCategories() {
   try {
-    const value = localStorage.getItem(LAST_CATEGORY_KEY);
-    if (value !== null) return value;
-    // One-time migration from the old key.
-    const legacy = localStorage.getItem(LEGACY_LAST_CATEGORY_KEY);
-    if (legacy !== null) {
-      localStorage.setItem(LAST_CATEGORY_KEY, legacy);
-      localStorage.removeItem(LEGACY_LAST_CATEGORY_KEY);
-    }
-    return legacy;
+    for (const key of LEGACY_KEYS) localStorage.removeItem(key);
+    const value = JSON.parse(localStorage.getItem(LAST_CATEGORIES_KEY) ?? '[]');
+    return Array.isArray(value) ? value.map(String) : [];
   } catch {
-    return null;
+    return [];
   }
 }
 
-export function saveLastCategory(key) {
+export function saveLastCategories(keys) {
   try {
-    localStorage.setItem(LAST_CATEGORY_KEY, key);
+    localStorage.setItem(LAST_CATEGORIES_KEY, JSON.stringify(keys));
   } catch {
     /* storage unavailable: not critical */
   }
