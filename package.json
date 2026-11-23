@@ -2,11 +2,12 @@
   "name": "mnemon",
   "version": "1.0.0",
   "scripts": {
-    "dev": "concurrently -k -n api,web -c blue,magenta \"node --watch --env-file=.env server.js\" \"vite\"",
+    "dev": "vite",
     "build": "vite build",
-    "start": "node server.js",
+    "preview": "vite preview",
     "test": "node --test \"test/*.test.js\"",
-    "export": "node scripts/export.js"
+    "export": "node --env-file-if-exists=.env scripts/export.js",
+    "import": "node scripts/import.js"
   },
   "keywords": [],
   "author": "",
@@ -14,19 +15,17 @@
   "type": "module",
   "description": "Notes personnelles : idées à faire, investiguer, lire et regarder",
   "engines": {
-    "node": ">=22"
-  },
-  "dependencies": {
-    "@hono/node-server": "^2.1.6",
-    "better-sqlite3": "^13.0.3",
-    "hono": "^4.13.16"
+    "node": ">=22.13"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.17",
     "@vitejs/plugin-react": "^6.2.1",
-    "concurrently": "^10.0.6",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "vite": "^8.3.6"
   },
-  "private": true
+  "private": true,
+  "dependencies": {
+    "@supabase/supabase-js": "^2.119.2"
+  }
 }

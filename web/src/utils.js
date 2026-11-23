@@ -1,6 +1,15 @@
 export const TITLE_MAX = 200;
 
-/** True only for absolute http(s) URLs. Mirrors the server rule. */
+/** Single source of truth for categories, in display order (keys mirror the database check). */
+export const CATEGORIES = Object.freeze([
+  { key: 'todo', label: 'À faire' },
+  { key: 'investigate', label: 'À investiguer' },
+  { key: 'read', label: 'À lire' },
+  { key: 'watch', label: 'À regarder' },
+]);
+export const CATEGORY_ORDER = CATEGORIES.map((c) => c.key);
+
+/** True only for absolute http(s) URLs. Mirrors the database check. */
 export function isHttpUrl(value) {
   if (typeof value !== 'string' || value.trim() === '') return false;
   try {
@@ -32,7 +41,7 @@ export function formatDate(iso) {
   return { short, full: dateFmtFull.format(d) };
 }
 
-/** Client-side validation (the server validates again). Returns an error message or null. */
+/** Client-side validation (the database checks again). Returns an error message or null. */
 export function validateDraft({ title, url }) {
   const t = title.trim();
   if (!t) return 'Le titre est obligatoire.';
@@ -41,7 +50,7 @@ export function validateDraft({ title, url }) {
   return null;
 }
 
-/** Same order as GET /api/items: category order, not-done first, newest first. */
+/** Display order: category order, not-done first, newest first. */
 export function sortItems(items, categoryOrder) {
   const rank = new Map(categoryOrder.map((k, i) => [k, i]));
   return [...items].sort(
@@ -51,6 +60,46 @@ export function sortItems(items, categoryOrder) {
       (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0) ||
       b.id - a.id,
   );
+}
+
+/** Database row (snake_case) → item used by the UI. */
+export function toItem(row) {
+  return {
+    id: row.id,
+    title: row.title,
+    url: row.url ?? null,
+    category: row.category,
+    done: row.done === true,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+/** Keeps only writable fields, trimmed; an empty link becomes null. */
+export function toRow(fields) {
+  const row = {};
+  if ('title' in fields) row.title = String(fields.title).trim();
+  if ('url' in fields) row.url = fields.url == null || String(fields.url).trim() === '' ? null : String(fields.url).trim();
+  if ('category' in fields) row.category = fields.category;
+  if ('done' in fields) row.done = Boolean(fields.done);
+  return row;
+}
+
+/**
+ * True for keys that must never ship to a browser: new-style secret keys and legacy
+ * service_role JWTs. Both bypass row-level security.
+ */
+export function isSecretKey(key) {
+  if (typeof key !== 'string') return false;
+  if (key.startsWith('sb_secret_')) return true;
+  const parts = key.split('.');
+  if (parts.length !== 3) return false;
+  try {
+    const json = atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'));
+    return JSON.parse(json).role === 'service_role';
+  } catch {
+    return false;
+  }
 }
 
 const LAST_CATEGORY_KEY = 'mnemon.lastCategory';

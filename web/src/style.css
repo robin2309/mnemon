@@ -90,8 +90,31 @@ select {
   margin: 0;
   font-size: 1.25rem;
 }
-.app-header form {
-  margin: 0;
+/* --- Login ------------------------------------------------------------------ */
+
+.login {
+  width: calc(100% - 32px);
+  max-width: 360px;
+  margin: max(48px, 15dvh) auto 0;
+  padding: 24px;
+}
+.login h1 {
+  margin: 0 0 16px;
+  font-size: 1.5rem;
+}
+.login form {
+  display: grid;
+  gap: 6px;
+}
+.login label {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+.login input + label {
+  margin-top: 10px;
+}
+.login .btn {
+  margin-top: 16px;
 }
 
 .container {

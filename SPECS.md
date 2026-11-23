@@ -8,7 +8,7 @@ Application web personnelle pour noter des idées de choses à **faire**, **inve
 
 ### 1.1 Utilisateur
 - Un seul utilisateur (moi). Pas de multi-comptes, pas de partage.
-- L'app est exposée sur internet : elle doit être protégée par un mot de passe.
+- L'app est exposée sur internet : elle doit être protégée par une connexion (email + mot de passe).
 
 ### 1.2 Objet métier : Item
 | Champ | Obligatoire | Description |
@@ -48,8 +48,8 @@ Application web personnelle pour noter des idées de choses à **faire**, **inve
 - Champ de recherche texte (filtre côté client sur titre et lien).
 
 **F7 — Authentification**
-- Accès protégé par un mot de passe unique défini côté serveur.
-- Une fois connecté sur un appareil, on reste connecté (session longue, 1 an).
+- Accès protégé par un compte unique (email + mot de passe) géré par Supabase Auth ; pas d'inscription possible.
+- Une fois connecté sur un appareil, on reste connecté jusqu'à la déconnexion.
 - Bouton « Se déconnecter ».
 
 ### 1.4 Ergonomie
@@ -71,109 +71,80 @@ Application web personnelle pour noter des idées de choses à **faire**, **inve
 ### 2.1 Stack
 | Couche | Choix | Raison |
 |---|---|---|
-| Runtime | Node.js ≥ 20 (ESM, JavaScript, pas de TypeScript ni d'étape de build) | Simplicité |
-| Serveur HTTP | [Hono](https://hono.dev) + `@hono/node-server` | Léger, API simple |
-| Base de données | SQLite via `better-sqlite3` | Un seul fichier, zéro administration |
-| Front | Une page `public/index.html` + `public/app.js` + `public/style.css`, JS vanilla | Pas de build, servie par le même serveur |
-| Hébergement | Fly.io, 1 machine, volume persistant pour le fichier SQLite | Accès multi-appareils, HTTPS fourni |
-
-Dépendances déjà installées : `hono`, `@hono/node-server`, `better-sqlite3`.
+| Front | React 19, construit par Vite dans `dist/` (JavaScript, pas de TypeScript) | Une seule app statique |
+| Données | Supabase Postgres, appelé depuis le navigateur avec `@supabase/supabase-js` | Pas de serveur applicatif à maintenir |
+| Authentification | Supabase Auth, email + mot de passe, inscriptions fermées | Compte unique créé à la main |
+| Hébergement | Netlify (site statique, HTTPS fourni) | Accès multi-appareils |
 
 ### 2.2 Arborescence
 ```
 mnemon/
-├── server.js          # app Hono : auth, routes API, fichiers statiques
-├── db.js              # connexion SQLite, migration, requêtes
-├── public/
-│   ├── index.html
-│   ├── login.html
-│   ├── app.js
-│   ├── style.css
-│   ├── manifest.webmanifest
-│   └── icon.svg
-├── Dockerfile
-├── fly.toml
+├── web/                     # source React (index.html, src/, public/)
+├── supabase/migrations/     # schéma, droits, row-level security
+├── scripts/                 # export (sauvegarde JSON) et import (SQL)
+├── test/
+├── netlify.toml             # build + en-têtes de sécurité
 ├── .env.example
 └── package.json
 ```
 
 ### 2.3 Configuration (variables d'environnement)
-| Variable | Défaut | Rôle |
-|---|---|---|
-| `PORT` | `3000` | Port d'écoute |
-| `DB_PATH` | `./data/mnemon.db` | Chemin du fichier SQLite (`/data/mnemon.db` en prod) |
-| `APP_PASSWORD` | — (obligatoire) | Mot de passe d'accès. Le serveur refuse de démarrer s'il est absent |
-| `SESSION_SECRET` | — (obligatoire) | Secret de signature du cookie de session |
+| Variable | Rôle |
+|---|---|
+| `VITE_SUPABASE_URL` | URL du projet Supabase |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Clé publishable (ex-`anon`). Publique par nature, inutile sans session. Jamais la clé secrète / `service_role` |
+
+Les deux sont lues au build (Netlify ou `.env` en local) et se retrouvent dans le JS public.
 
 ### 2.4 Modèle de données
 ```sql
-CREATE TABLE IF NOT EXISTS items (
-  id          INTEGER PRIMARY KEY AUTOINCREMENT,
-  title       TEXT    NOT NULL CHECK (length(title) BETWEEN 1 AND 200),
-  url         TEXT,
-  category    TEXT    NOT NULL CHECK (category IN ('todo','investigate','read','watch')),
-  done        INTEGER NOT NULL DEFAULT 0 CHECK (done IN (0,1)),
-  created_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-  updated_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+create table public.items (
+  id          bigint generated always as identity primary key,
+  user_id     uuid        not null default auth.uid() references auth.users (id) on delete cascade,
+  title       text        not null check (char_length(title) between 1 and 200 and title = btrim(title)),
+  url         text        check (url is null or (char_length(url) <= 2048 and url ~* '^https?://\S+$')),
+  category    text        not null check (category in ('todo', 'investigate', 'read', 'watch')),
+  done        boolean     not null default false,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()   -- mis à jour par trigger
 );
-CREATE INDEX IF NOT EXISTS idx_items_category ON items(category, done, created_at);
 ```
-- Créer le dossier de `DB_PATH` s'il n'existe pas ; activer `PRAGMA journal_mode = WAL`.
-- Libellés affichés : `todo` → À faire, `investigate` → À investiguer, `read` → À lire, `watch` → À regarder. La liste des catégories est définie à un seul endroit côté serveur et exposée au front (voir `GET /api/categories`).
+- Libellés affichés : `todo` → À faire, `investigate` → À investiguer, `read` → À lire, `watch` → À regarder. La liste est définie à un seul endroit côté front (`CATEGORIES` dans `web/src/utils.js`) et doit rester alignée avec la contrainte SQL.
+- Ordre d'affichage : catégorie, puis non faits d'abord, puis plus récents d'abord (tri côté client).
 
-### 2.5 API REST
-Toutes les routes `/api/*` exigent une session valide (sinon `401`). Corps et réponses en JSON.
-
-| Méthode | Route | Corps | Réponse |
-|---|---|---|---|
-| `GET` | `/api/categories` | — | `200 [{ "key": "todo", "label": "À faire" }, …]` dans l'ordre d'affichage |
-| `GET` | `/api/items` | — | `200 [Item]` triés par catégorie (ordre ci-dessus), puis `done` ASC, puis `created_at` DESC |
-| `POST` | `/api/items` | `{ title, url?, category }` | `201 Item` |
-| `PATCH` | `/api/items/:id` | sous-ensemble de `{ title, url, category, done }` | `200 Item` ; met à jour `updated_at` |
-| `DELETE` | `/api/items/:id` | — | `204` |
-
-Format `Item` :
-```json
-{ "id": 1, "title": "…", "url": "https://…" , "category": "read", "done": false,
-  "createdAt": "2026-11-05T10:00:00.000Z", "updatedAt": "…" }
-```
-`url` vaut `null` si absent ; `done` est un booléen JSON.
-
-**Validation serveur** (ne jamais faire confiance au front) :
-- `title` : chaîne, trim, 1–200 caractères.
-- `url` : chaîne vide → `null` ; sinon `new URL()` doit réussir et le protocole être `http:` ou `https:` (refuser `javascript:` etc.).
-- `category` : une des clés connues.
-- `done` : booléen.
-- Erreur de validation → `400 { "error": "message lisible" }`. Id inexistant → `404`.
+### 2.5 Accès aux données
+Le front lit et écrit `public.items` directement via supabase-js. La sécurité est portée par la base (fichier `supabase/migrations/…_create_items.sql`) :
+- rôle `anon` (non connecté) : aucun droit sur la table ;
+- rôle `authenticated` : `select` / `delete`, et `insert` / `update` limités aux colonnes `title`, `url`, `category`, `done` ;
+- row-level security : chaque opération est limitée aux lignes où `user_id = auth.uid()` ;
+- validation : les contraintes `check` ci-dessus ; le front applique les mêmes règles avant envoi pour afficher des messages lisibles.
 
 ### 2.6 Authentification
-- `GET /login` sert `login.html` (un champ mot de passe).
-- `POST /login` (form) : compare le mot de passe à `APP_PASSWORD` en temps constant (`crypto.timingSafeEqual` sur des hash SHA-256). Succès → cookie de session signé (Hono `setSignedCookie` avec `SESSION_SECRET`), `HttpOnly`, `Secure` en prod, `SameSite=Lax`, `Max-Age` 1 an, puis redirection vers `/`. Échec → redirection vers `/login?error=1`.
-- `POST /logout` : supprime le cookie, redirige vers `/login`.
-- Middleware : toute requête hors `/login`, `/manifest.webmanifest` et `/icon.svg` sans session valide → `302 /login` pour les pages, `401` pour `/api/*`.
-- Limitation simple des tentatives : délai de 1 s sur chaque échec de login.
+- Écran de connexion React (email + mot de passe) → `supabase.auth.signInWithPassword`.
+- Session conservée par supabase-js dans le navigateur et rafraîchie automatiquement : on reste connecté jusqu'à « Se déconnecter ».
+- Inscriptions désactivées dans Supabase (Authentication → Sign In / Providers) ; le compte est créé à la main dans le tableau de bord.
+- Le front refuse de démarrer avec une clé secrète / `service_role`.
 
 ### 2.7 Front
-- `app.js` charge `/api/categories` et `/api/items` au démarrage, garde l'état en mémoire et re-rend la liste après chaque action.
-- Mises à jour optimistes (cocher, supprimer) avec retour arrière + message d'erreur si l'API échoue.
-- Une réponse `401` redirige vers `/login`.
-- Construction du DOM via `textContent` / `createElement` (pas d'`innerHTML` avec des données utilisateur) pour éviter les XSS. Liens ouverts avec `target="_blank" rel="noopener noreferrer"`.
+- Mises à jour optimistes (cocher, supprimer) avec retour arrière + message d'erreur.
+- Une session expirée ou refusée ramène à l'écran de connexion.
+- React échappe le texte ; les liens ne sont rendus que s'ils sont en `http(s)`, avec `target="_blank" rel="noopener noreferrer"`.
 - CSS : variables de couleurs sur `:root`, redéfinies dans `@media (prefers-color-scheme: dark)`. Pas de framework CSS.
 
-### 2.8 Déploiement (Fly.io)
-- `Dockerfile` : image `node:22-slim`, `npm ci --omit=dev`, `CMD ["node","server.js"]`.
-- `fly.toml` : `internal_port = 3000`, `force_https = true`, montage d'un volume `mnemon_data` sur `/data`, `DB_PATH=/data/mnemon.db`, 1 machine (SQLite n'accepte qu'une instance), `auto_stop_machines = "stop"` et `min_machines_running = 0` pour limiter le coût.
-- Secrets posés via `fly secrets set APP_PASSWORD=… SESSION_SECRET=…`.
-- Documenter dans un `README.md` : lancement local (`npm run dev` avec `.env`), premier déploiement (`fly launch --no-deploy`, `fly volumes create mnemon_data --size 1`, `fly secrets set …`, `fly deploy`), sauvegarde de la base (`fly ssh sftp get /data/mnemon.db`).
+### 2.8 Déploiement (Netlify)
+- `netlify.toml` : `npm run build`, dossier publié `dist`, Node 22.
+- En-têtes : CSP (`connect-src 'self' https://*.supabase.co`, pas de script inline, `frame-ancestors 'none'`), HSTS, `nosniff`, `no-referrer`, `X-Robots-Tag: noindex`.
+- Variables `VITE_SUPABASE_URL` et `VITE_SUPABASE_PUBLISHABLE_KEY` dans les réglages du site.
+- Sauvegarde : `npm run export` (JSON) ; restauration / migration depuis l'ancienne base SQLite : `npm run import` génère le SQL à exécuter dans Supabase.
 
 ### 2.9 Critères d'acceptation
-1. Sans mot de passe, `/` redirige vers `/login` et `/api/items` répond `401`.
+1. Sans connexion, l'app affiche l'écran de connexion, et une requête à la table `items` avec la seule clé publishable ne renvoie rien (ni lecture ni écriture).
 2. Après connexion, ajouter « Dune » sans lien dans « À lire » : l'item apparaît en tête de la section, compteur à jour.
 3. Ajouter un item avec le lien `https://www.youtube.com/watch?v=x` : titre cliquable, `youtube.com` affiché.
-4. Un lien `javascript:alert(1)` ou `ftp://x` est refusé (`400`) avec message affiché.
+4. Un lien `javascript:alert(1)` ou `ftp://x` est refusé avec message affiché (et rejeté par la base s'il est envoyé directement).
 5. Cocher un item le passe dans les « terminés » repliés ; le décocher le remet en haut.
 6. Modifier la catégorie d'un item le déplace dans la bonne section.
 7. Supprimer demande confirmation puis retire l'item.
-8. Après redémarrage du serveur (ou redeploy Fly), les items sont toujours là.
+8. Après un redéploiement Netlify, les items sont toujours là.
 9. Un item ajouté depuis le téléphone apparaît sur l'ordinateur après rechargement.
 10. Affichage correct et sans scroll horizontal à 375 px de large, en clair et en sombre.

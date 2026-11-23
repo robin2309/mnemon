@@ -12,6 +12,10 @@ dist/
 # SQLite data (local)
 data/
 
-# Exported backups (npm run export)
+# Backups (npm run export / import)
 *.db
 backups/
+mnemon-*.json
+*.sql
+!supabase/migrations/*.sql
+.netlify/

@@ -1,21 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from './api.js';
-import { sortItems } from './utils.js';
+import { supabase } from './supabase.js';
+import { CATEGORIES as categories, CATEGORY_ORDER as categoryOrder, sortItems } from './utils.js';
 import AddForm from './components/AddForm.jsx';
 import Filters from './components/Filters.jsx';
 import Section from './components/Section.jsx';
 import Toast from './components/Toast.jsx';
 
 export default function App() {
-  const [categories, setCategories] = useState([]);
   const [items, setItems] = useState([]);
   const [status, setStatus] = useState('loading'); // loading | ready | error
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [toast, setToast] = useState(null);
   const toastId = useRef(0);
-
-  const categoryOrder = useMemo(() => categories.map((c) => c.key), [categories]);
 
   const notify = useCallback((message) => {
     toastId.current += 1;
@@ -27,9 +25,7 @@ export default function App() {
   const load = useCallback(async () => {
     setStatus('loading');
     try {
-      const [cats, its] = await Promise.all([api.categories(), api.items()]);
-      setCategories(cats);
-      setItems(its);
+      setItems(await api.items());
       setStatus('ready');
     } catch (err) {
       setStatus('error');
@@ -99,6 +95,11 @@ export default function App() {
     [upsert, notify],
   );
 
+  const signOut = useCallback(async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) notify(`Déconnexion impossible : ${error.message}`);
+  }, [notify]);
+
   // --- Derived view -----------------------------------------------------------
 
   const query = search.trim().toLocaleLowerCase('fr');
@@ -111,17 +112,15 @@ export default function App() {
         category: c,
         items: items.filter((i) => i.category === c.key && matches(i)),
       }));
-  }, [categories, items, filter, query]);
+  }, [items, filter, query]);
 
   return (
     <>
       <header className="app-header">
         <h1>Mnémon</h1>
-        <form method="post" action="/logout">
-          <button type="submit" className="btn btn-ghost">
-            Se déconnecter
-          </button>
-        </form>
+        <button type="button" className="btn btn-ghost" onClick={signOut}>
+          Se déconnecter
+        </button>
       </header>
 
       <main className="container">
@@ -134,7 +133,7 @@ export default function App() {
           </div>
         )}
 
-        {categories.length > 0 && (
+        {status !== 'error' && (
           <>
             <AddForm categories={categories} onAdd={addItem} />
             <Filters
