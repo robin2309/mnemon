@@ -61,6 +61,13 @@ describe('items table', () => {
     assert.ok(rows[0].updated_at > before);
   });
 
+  test('API roles cannot call the trigger function directly', async () => {
+    for (const role of ['anon', 'authenticated']) {
+      const { rows } = await as(role, null, "select has_function_privilege('public.items_set_updated_at()', 'execute') as ok");
+      assert.equal(rows[0].ok, false, role);
+    }
+  });
+
   test('invalid data is rejected by the database', async () => {
     for (const [title, url, category] of [
       ['x', 'javascript:alert(1)', 'todo'],
