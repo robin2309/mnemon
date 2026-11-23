@@ -20,3 +20,10 @@
 
 - **Nom affiché** (interface, titres, manifest PWA) : **Mnémon**, avec l'accent.
 - **Identifiants techniques** (paquet npm, app Fly, volume, fichiers) : `mnemon`, sans accent.
+
+## L'icône
+
+- **Motif** : la lettre grecque **μ** (mu), initiale de μνήμων. C'est aussi le « M » de Mnémon.
+- **Dessin** : un trait blanc épais aux extrémités arrondies, sans police, pour rester net de 16 px à 512 px.
+- **Couleurs** : fond bleu `#3a5bd9` (la couleur d'accent de l'interface), lettre blanche.
+- **Fichiers** : la source est [`web/public/icon.svg`](web/public/icon.svg). Il en existe deux variantes à bords droits dans `web/public/icons/` : `icon-full.svg` pour iOS et `icon-maskable.svg` pour Android. Les PNG se régénèrent avec `sh scripts/build-icons.sh`.

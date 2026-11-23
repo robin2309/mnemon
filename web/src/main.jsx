@@ -33,3 +33,12 @@ createRoot(document.getElementById('root')).render(
     <Root />
   </StrictMode>,
 );
+
+// Service worker (web/public/sw.js): production only, so the dev server never serves stale files.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {
+      /* not critical: the app works without it, just not offline */
+    });
+  });
+}

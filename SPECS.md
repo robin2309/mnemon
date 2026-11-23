@@ -58,7 +58,7 @@ Application web personnelle pour noter des idées de choses à **faire**, **inve
 - Mobile-first : utilisable confortablement sur un écran de 375 px de large, cibles tactiles ≥ 44 px.
 - Thème clair/sombre automatique (`prefers-color-scheme`).
 - Interface en français.
-- Installable sur l'écran d'accueil du téléphone (manifest PWA minimal : nom, icône, `display: standalone`). Pas de mode hors-ligne requis.
+- Installable sur l'écran d'accueil du téléphone (PWA) : manifest (nom, icônes PNG 192/512 + maskable, icône Apple, `display: standalone`) et service worker `web/public/sw.js`. Le service worker met en cache l'interface pour qu'elle s'ouvre même sans réseau ; les données (Supabase) ne sont jamais mises en cache. Pas de mode hors-ligne pour les données.
 
 ### 1.5 Hors périmètre (v1)
 - Multi-utilisateurs, partage.

@@ -47,6 +47,16 @@ Tests : `npm test` (fonctions du front, règles d'accès de la base sur un Postg
 
 `netlify.toml` pose aussi les en-têtes de sécurité (CSP limitée au site et à `*.supabase.co`, pas d'iframe, `noindex`).
 
+## Application installable (PWA)
+
+Mnémon s'installe sur l'écran d'accueil : sur Android, menu de Chrome → *Installer l'application* ; sur iPhone, Safari → *Partager* → *Sur l'écran d'accueil*.
+
+- Le service worker [`web/public/sw.js`](web/public/sw.js) n'est actif qu'en production (`npm run build` puis `npm run preview`, ou sur Netlify) : jamais avec `npm run dev`.
+- Il garde l'interface en cache pour qu'elle s'ouvre sans réseau, et charge toujours la dernière version déployée quand le réseau est là. Les appels à Supabase ne passent jamais par le cache : sans réseau, les idées ne s'affichent pas.
+- Si une modification de `sw.js` doit vider les caches existants, changer `CACHE` (`mnemon-v1` → `mnemon-v2`).
+- Icônes : sources SVG dans `web/public/`, PNG régénérés par `sh scripts/build-icons.sh` (voir [`DA.md`](DA.md)).
+- Sur iPhone, l'app installée a son propre stockage : il faut s'y reconnecter une fois.
+
 ## Sauvegarde et restauration
 
 ```sh
